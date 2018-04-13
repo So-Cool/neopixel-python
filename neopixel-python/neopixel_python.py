@@ -1,38 +1,72 @@
 from __future__ import print_function
 
 import neopixel as npx
-import neopixel_python as npxp
-import random
-import threading
-import time
 
-RING_LED_PIN        = 12      # Google AIY voice hat -- Servo 4 -- GPIO 12.
-RING_LED_CHANNEL    = 0       # set to '1' for GPIOs 13, 19, 41, 45 or 53
-RING_LED_COUNT      = 16      # Number of LED pixels.
+# LED strip configuration:
+LED_PIN        = 18      # GPIO pin connected to the pixels (18 uses PWM!).
+#LED_PIN        = 10      # GPIO pin connected to the pixels (10 uses SPI /dev/spidev0.0).
+LED_COUNT      = 16      # Number of LED pixels.
+LED_FREQ_HZ    = 800000  # LED signal frequency in hertz (usually 800khz)
+LED_DMA        = 10      # DMA channel to use for generating signal (try 10)
+LED_BRIGHTNESS = 128     # Set to 0 for darkest and 255 for brightest
+LED_INVERT     = False   # True to invert the signal (when using NPN transistor level shift)
+LED_CHANNEL    = 0       # set to '1' for GPIOs 13, 19, 41, 45 or 53
+LED_STRIP      = npx.ws.WS2811_STRIP_GRB   # Strip type and colour ordering
 
-# TODO: set upright pixel offset for the ring (just like square rotation
-# TODO: signal kill
-    # Signals
-    # https://www.g-loaded.eu/2016/11/24/how-to-terminate-running-python-threads-using-signals/
-    # https://christopherdavis.me/blog/threading-basics.html
+def wheel(pos):
+    """Generate rainbow colors across 0-255 positions."""
+    if pos < 85:
+        return npx.Color(pos * 3, 255 - pos * 3, 0)
+    elif pos < 170:
+        pos -= 85
+        return npx.Color(255 - pos * 3, 0, pos * 3)
+    else:
+        pos -= 170
+        return npx.Color(0, pos * 3, 255 - pos * 3)
 
-class RingLED(threading.Thread):
+def extract_colour(colour, colour_component):
+    if colour_component.lower() == "r":
+        return (colour & 0b111111110000000000000000) >> 16
+    elif colour_component.lower() == "g":
+        return (colour & 0b000000001111111100000000) >> 8
+    elif colour_component.lower() == "b":
+        return (colour & 0b000000000000000011111111)
+    else:
+        raise "Unknown colour component"
+
+def extract_colours(colour):
+    r = (colour & 0b111111110000000000000000) >> 16
+    g = (colour & 0b000000001111111100000000) >> 8
+    b = (colour & 0b000000000000000011111111)
+    return r, g, b
+
+def colour_shift(colour, divider=1.1):
+    r = ((colour & 0b111111110000000000000000) >> 16) / divider
+    g = ((colour & 0b000000001111111100000000) >> 8 ) / divider
+    b = ((colour & 0b000000000000000011111111)      ) / divider
+    if int(r) == 0 or int(g) == 0 or int(b) ==0:
+        return 0
+    return (int(r)<<16)+(int(g)<<8)+int(b)
+
+def sign(a):
+    if a < 0: return -1
+    elif a > 0: return 1
+    else: return 0
+
+class DriveLED(threading.Thread):
     """
     Usage example:
-        rr = RingLED(pattern="none")
+        rr = DriveLED(pattern="none")
         rr.start()
-
-        rr.switch_pattern("rainbow")
-        rr.switch_pattern("shake")
-        rr.switch_pattern("bounce")
-        rr.switch_pattern("wave")
 
         rr.switch_pattern("pulse")
         rr.switch_pattern("still")
         rr.switch_pattern("none")
         rr.switch_pattern("test")
+
         rr.set_brightness(255)
         rr.set_brightness(100)
+
         rr.stop()
     """
 
