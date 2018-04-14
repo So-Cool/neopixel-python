@@ -172,7 +172,10 @@ class DriveLED(threading.Thread):
         self._update_pattern(new_pattern)
         self._update_pattern("switch")
         self.colour_loop_break.set()
-    def _switch_pattern(self, **kwargs):
+        if self.pause_indicator:
+            self.pause_indicator = False
+            self.paused.clear()
+    def _switch_pattern(self, preserve_colour=False, **kwargs):
         if self.pause_indicator:
             return
 
@@ -183,7 +186,9 @@ class DriveLED(threading.Thread):
                 self.strip.setBrightness(i)
                 self.show()
                 time.sleep(self.switch_ms_time/1000.0)
-        self._dark()
+
+        if not preserve_colour:
+            self._dark()
     def switch_fade_back(self, overwrite=None):
         if self.pause_indicator:
             self.pause_indicator = False
@@ -274,20 +279,22 @@ class DriveLED(threading.Thread):
         self.switch_fade_back()  # Fade back after switch
         while not self.colour_loop_break.is_set():
             time.sleep(ms_time/1000.0)
-    def _still(self, ms_time=1000, colour=None, **kwargs):
+    def _still(self, ms_time=1000, colour=None, preserve_colour=False, **kwargs):
         if colour is None:
             colour = self.still_colour
-        for i in range(self.LED_number):
-            self.set_pixel_colour(i, colour)
+        if not preserve_colour:
+            for i in range(self.LED_number):
+                self.set_pixel_colour(i, colour)
         self.switch_fade_back()  # Fade back after switch
         self.show()
         while not self.colour_loop_break.is_set():
             time.sleep(ms_time/1000.0)
-    def _pulse(self, ms_time=20, colour=None, **kwargs):
+    def _pulse(self, ms_time=20, colour=None, preserve_colour=False, **kwargs):
         if colour is None:
             colour = self.pulse_colour
-        for i in range(self.LED_number):
-            self.set_pixel_colour(i, colour)
+        if not preserve_colour:
+            for i in range(self.LED_number):
+                self.set_pixel_colour(i, colour)
         self.switch_fade_back(overwrite=self.pulse_brightness)  # Fade back after switch
         if self.previous_pattern != "brightness":
             for i in range(self.pulse_brightness, self.brightness+1):
