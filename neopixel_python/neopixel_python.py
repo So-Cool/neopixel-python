@@ -172,11 +172,11 @@ class DriveLED(threading.Thread):
         self._update_pattern(new_pattern)
         self._update_pattern("switch")
         self.colour_loop_break.set()
-        if self.pause_indicator:
+        if self.pause_indicator and new_pattern != "brightness":
             self.pause_indicator = False
             self.paused.clear()
     def _switch_pattern(self, preserve_colour=False, **kwargs):
-        if self.pause_indicator:
+        if self.pause_indicator and self.previous_pattern != "brightness":
             return
 
         self.colour_loop_break.clear()
@@ -190,7 +190,7 @@ class DriveLED(threading.Thread):
         if not preserve_colour:
             self._dark()
     def switch_fade_back(self, overwrite=None):
-        if self.pause_indicator:
+        if self.pause_indicator and self.previous_pattern != "brightness":
             self.pause_indicator = False
             return
 
@@ -214,6 +214,8 @@ class DriveLED(threading.Thread):
         self.brightness = brightness
         self._update_pattern("brightness")
         self.colour_loop_break.set()
+        if self.pause_indicator:
+            self.paused.clear()
     def _set_brightness(self, wait_ms=5, **kwargs):
         def bright_me(current_brightness, target_brightness):
             if target_brightness <= current_brightness:
@@ -225,7 +227,10 @@ class DriveLED(threading.Thread):
             self.strip.setBrightness(i)
             self.show()
             time.sleep(wait_ms/1000.0)
-        self.colour_loop_break.clear()
+        if self.pause_indicator:
+            self.paused.set()
+        else:
+            self.colour_loop_break.clear()
         self._revert_pattern()
 
     def pause(self):
