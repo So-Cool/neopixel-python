@@ -3,7 +3,6 @@ from __future__ import print_function
 import neopixel as npx
 import neopixel_python as npxp
 import random
-import threading
 import time
 
 RING_LED_PIN        = 12      # Google AIY voice hat -- Servo 4 -- GPIO 12.
@@ -11,12 +10,8 @@ RING_LED_CHANNEL    = 0       # set to '1' for GPIOs 13, 19, 41, 45 or 53
 RING_LED_COUNT      = 16      # Number of LED pixels.
 
 # TODO: set upright pixel offset for the ring (just like square rotation
-# TODO: signal kill
-    # Signals
-    # https://www.g-loaded.eu/2016/11/24/how-to-terminate-running-python-threads-using-signals/
-    # https://christopherdavis.me/blog/threading-basics.html
 
-class RingLED(threading.Thread):
+class RingLED(npxp.DriveLED):
     """
     Usage example:
         rr = RingLED(pattern="none")
@@ -27,50 +22,8 @@ class RingLED(threading.Thread):
         rr.switch_pattern("bounce")
         rr.switch_pattern("wave")
 
-        rr.switch_pattern("pulse")
-        rr.switch_pattern("still")
-        rr.switch_pattern("none")
-        rr.switch_pattern("test")
-        rr.set_brightness(255)
-        rr.set_brightness(100)
         rr.stop()
     """
-
-    def __init__(self, pattern="pulse", brightness=100, fade=True,
-            led_count=None, led_pin=None, led_freq_hz=None, led_dma=None,
-            led_invert=None, led_brightness=None, led_channel=None,
-            led_strip=None):
-
-        # Init the thread.
-        super(RingLED, self).__init__()
-        self.active = threading.Event()
-
-        # Init the strip
-        self.strip = self._init_strip(led_count, led_pin, led_freq_hz, led_dma,
-                led_invert, led_brightness, led_channel, led_strip)
-
-        # Init pattern changer
-        self.pattern_map = {"brightness": self._set_brightness, "switch": self._switch_pattern}
-
-        self.LED_number = self.strip.numPixels()
-        self.strip.setBrightness(brightness)
-        self._dark()
-
-        self.brightness = self.strip.getBrightness()
-
-        # Default pattern
-        self.pattern = pattern
-        self.previous_pattern = pattern
-
-        # To fade, or not to fade
-        self.switch_fade = fade
-
-        # (Almost) infinite loop for displaying colour patterns
-        self.colour_loop_break = threading.Event()
-
-        # Init patterns
-        self._init_default_patterns()
-        self._init_custom_patterns()
 
     def _init_strip(self, led_count, led_pin, led_freq_hz, led_dma, led_invert,
             led_brightness, led_channel, led_strip):
@@ -94,133 +47,8 @@ class RingLED(threading.Thread):
         strip = npx.Adafruit_NeoPixel(led_count, led_pin, led_freq_hz,
                                       led_dma, led_invert, led_brightness,
                                       led_channel, led_strip)
-        # Intialize the library (must be called once before other functions).
-        strip.begin()
         return strip
 
-    def switch_pattern(self, new_pattern):
-        self._update_pattern(new_pattern)
-        self._update_pattern("switch")
-        self.pause()
-    def _switch_pattern(self):
-        self.restart()
-        self._revert_pattern()
-        if self.switch_fade:
-            for i in range(self.strip.getBrightness()-1, 0-1, -1):
-                self.strip.setBrightness(i)
-                self.strip.show()
-                time.sleep(self.switch_ms_time/1000.0)
-        self._dark()
-    def _switch_fade_back(self, overwrite=None):
-        if self.switch_fade and self.previous_pattern != "brightness":
-            max_brightness = self.brightness if overwrite is None else overwrite
-            for i in range(0+1, max_brightness+1):
-                self.strip.setBrightness(i)
-                self.strip.show()
-                time.sleep(self.switch_ms_time/1000.0)
-        if not self.switch_fade and self.previous_pattern != "brightness":
-            self.strip.setBrightness(self.brightness)
-    def _update_pattern(self, new_pattern):
-        self.previous_pattern = self.pattern
-        self.pattern = new_pattern
-    def _revert_pattern(self):
-        c = self.pattern
-        self.pattern = self.previous_pattern
-        self.previous_pattern = c
-
-    def set_brightness(self, brightness):
-        self.brightness = brightness
-        self._update_pattern("brightness")
-        self.pause()
-    def _set_brightness(self, wait_ms=5):
-        def bright_me(current_brightness, target_brightness):
-            if target_brightness <= current_brightness:
-                return range(current_brightness-1, target_brightness-1, -1)
-            else:
-                return range(current_brightness+1, target_brightness+1)
-
-        for i in bright_me(self.strip.getBrightness(), self.brightness):
-            self.strip.setBrightness(i)
-            self.strip.show()
-            time.sleep(wait_ms/1000.0)
-        self.restart()
-        self._revert_pattern()
-
-    def pause(self):
-        self.colour_loop_break.set()
-
-    def restart(self):
-        self.colour_loop_break.clear()
-
-    def run(self):
-        while not self.active.is_set():
-            if self.pattern in self.pattern_map:
-                self.pattern_map[self.pattern]()
-            else:
-                print("Unknown pattern {}.".format(self.pattern))
-                print("Switching to *pulse*.")
-                self._update_pattern("pulse")
-
-        self._dark()
-    def stop(self):
-        self.colour_loop_break.set()
-        self.active.set()
-
-    # Predefined general patterns -- necessary inits
-    def _init_default_patterns(self):
-        default_patterns_map = {"pulse": self._pulse, "still": self._still, "none": self._none}
-        self.pattern_map.update(default_patterns_map)
-
-        # Pulse
-        self.pulse_colour = npx.Color(128, 0, 128)
-        self.pulse_brightness = self.strip.getBrightness()
-        # Still
-        self.still_colour = npx.Color(0, 128, 128)
-        # Switch
-        self.switch_ms_time = 5
-
-    # Predefined general patterns
-    def _dark(self):
-        for i in range(self.LED_number):
-            self.strip.setPixelColor(i, 0)
-        self.strip.show()
-    def _none(self, ms_time=1000):
-        self._dark()
-        self._switch_fade_back()  # Fade back after switch
-        while not self.colour_loop_break.is_set():
-            time.sleep(ms_time/1000.0)
-    def _still(self, ms_time=1000):
-        for i in range(self.LED_number):
-            self.strip.setPixelColor(i, self.still_colour)
-        self._switch_fade_back()  # Fade back after switch
-        self.strip.show()
-        while not self.colour_loop_break.is_set():
-            time.sleep(ms_time/1000.0)
-    def _pulse(self, ms_time=20):
-        for i in range(self.LED_number):
-            self.strip.setPixelColor(i, self.pulse_colour)
-        self._switch_fade_back(overwrite=self.pulse_brightness)  # Fade back after switch
-        if self.previous_pattern != "brightness":
-            for i in range(self.pulse_brightness, self.brightness+1):
-                self.pulse_brightness = i
-                self.strip.setBrightness(self.pulse_brightness)
-                self.strip.show()
-                if self.colour_loop_break.is_set():
-                    break
-                time.sleep((100*ms_time)/(self.brightness+1-self.pulse_brightness)/1000.0)
-        #
-        axis = range(self.brightness, 0, -1)
-        axis += [0] + axis[::-1]
-        while not self.colour_loop_break.is_set():
-            for i in axis:
-                self.pulse_brightness = i
-                self.strip.setBrightness(self.pulse_brightness)
-                self.strip.show()
-                if self.colour_loop_break.is_set():
-                    break
-                time.sleep((100*ms_time)/int((len(axis)/2))/1000.0)
-
-    ############################################################################
     # Predefined circular patterns -- necessary inits
     def _init_custom_patterns(self):
         custom_patterns_map = {"rainbow": self._rainbowCycle,
