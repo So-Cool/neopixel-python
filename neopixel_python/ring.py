@@ -1,6 +1,5 @@
 from __future__ import print_function
 
-import neopixel as npx
 import neopixel_python as npxp
 import random
 import time
@@ -44,9 +43,8 @@ class RingLED(npxp.DriveLED):
             led_channel = RING_LED_CHANNEL
         if led_strip is None:
             led_strip = npxp.LED_STRIP
-        strip = npx.Adafruit_NeoPixel(led_count, led_pin, led_freq_hz,
-                                      led_dma, led_invert, led_brightness,
-                                      led_channel, led_strip)
+        strip = npxp.get_neopixel(led_count, led_pin, led_freq_hz, led_dma,
+                led_invert, led_brightness, led_channel, led_strip)
         return strip
 
     # Predefined circular patterns -- necessary inits
@@ -61,10 +59,10 @@ class RingLED(npxp.DriveLED):
         self.rainbow_clockwise = False
         # Shake
         self.shake_state = 1
-        self.shake_red = npx.Color(217, 80, 64)
-        self.shake_green = npx.Color(88, 165, 92)
-        self.shake_blue = npx.Color(79, 134, 237)
-        self.shake_yellow = npx.Color(243, 189, 66)
+        self.shake_red = npxp.get_colour(217, 80, 64)
+        self.shake_green = npxp.get_colour(88, 165, 92)
+        self.shake_blue = npxp.get_colour(79, 134, 237)
+        self.shake_yellow = npxp.get_colour(243, 189, 66)
         self.shake_one = 0
         self.shake_two = 4
         self.shake_three = 8
@@ -75,13 +73,13 @@ class RingLED(npxp.DriveLED):
                               (self.shake_four, self.shake_yellow)]
         # Bounce
         self.bounce_state = 0
-        self.bounce_bg = npx.Color(0, 0, 0)
-        self.bounce_fg = npx.Color(0, 0, 128)
+        self.bounce_bg = npxp.get_colour(0, 0, 0)
+        self.bounce_fg = npxp.get_colour(0, 0, 128)
         # Wave
         self.wave_origin = {"one":0, "two":8}
         self.wave_state = {"one":0, "two":0}
         self.wave_queue = {"one":[], "two":[]}
-        self.wave_colour = {"one": npx.Color(127,0,127), "two":npx.Color(0,127,127)}
+        self.wave_colour = {"one": npxp.get_colour(127,0,127), "two":npxp.get_colour(0,127,127)}
         self.wave_colour_current = {"one": 0, "two": 0}
 
     # Predefined circular patterns
@@ -95,30 +93,30 @@ class RingLED(npxp.DriveLED):
             direction = 1
 
         for i in range(self.LED_number):
-            self.strip.setPixelColor(i, npxp.wheel((int(i * 256 / self.LED_number) + self.rainbow_state) & 255))
-        self.strip.show()
-        self._switch_fade_back()  # Fade back after switch
+            self.set_pixel_colour(i, npxp.wheel((int(i * 256 / self.LED_number) + self.rainbow_state) & 255))
+        self.show()
+        self.switch_fade_back()  # Fade back after switch
         while not self.colour_loop_break.is_set():
             for i in range(self.LED_number):
-                self.strip.setPixelColor(i, npxp.wheel((int(i * 256 / self.LED_number) + self.rainbow_state) & 255))
-            self.strip.show()
+                self.set_pixel_colour(i, npxp.wheel((int(i * 256 / self.LED_number) + self.rainbow_state) & 255))
+            self.show()
             time.sleep(wait_ms/1000.0)
             self.rainbow_state = (self.rainbow_state + direction) & 255
     def _shake_four(self, ms_time=600, shakes_number=5, **kwargs):
         for i, c in self.shake_pattern:
-            self.strip.setPixelColor(self.get_led_id(i), c)
-            self.strip.setPixelColor(self.get_led_id(i+self.shake_state), c)
-            self.strip.setPixelColor(self.get_led_id(i-self.shake_state), 0)
-        self.strip.show()
-        self._switch_fade_back()  # Fade back after switch
+            self.set_pixel_colour(self.get_led_id(i), c)
+            self.set_pixel_colour(self.get_led_id(i+self.shake_state), c)
+            self.set_pixel_colour(self.get_led_id(i-self.shake_state), 0)
+        self.show()
+        self.switch_fade_back()  # Fade back after switch
         while not self.colour_loop_break.is_set():
             for _ in range(shakes_number):
                 self.shake_state *= -1
                 for i, c in self.shake_pattern:
-                    self.strip.setPixelColor(self.get_led_id(i), c)
-                    self.strip.setPixelColor(self.get_led_id(i+self.shake_state), c)
-                    self.strip.setPixelColor(self.get_led_id(i-self.shake_state), 0)
-                self.strip.show()
+                    self.set_pixel_colour(self.get_led_id(i), c)
+                    self.set_pixel_colour(self.get_led_id(i+self.shake_state), c)
+                    self.set_pixel_colour(self.get_led_id(i-self.shake_state), 0)
+                self.show()
                 if self.colour_loop_break.is_set():
                     break
                 time.sleep(ms_time/1000.0)
@@ -131,22 +129,22 @@ class RingLED(npxp.DriveLED):
             fg_colour = self.bounce_fg
 
         for i in range(self.LED_number):
-            self.strip.setPixelColor(i, bg_colour)
+            self.set_pixel_colour(i, bg_colour)
         px = self.bounce_state % self.LED_number
         if self.bounce_state <= self.LED_number:
-            self.strip.setPixelColor(self.get_led_id(px), fg_colour)
+            self.set_pixel_colour(self.get_led_id(px), fg_colour)
         else:
-            self.strip.setPixelColor(self.get_led_id(self.LED_number + 1 - px), fg_colour)
-        self._switch_fade_back()  # Fade back after switch
+            self.set_pixel_colour(self.get_led_id(self.LED_number + 1 - px), fg_colour)
+        self.switch_fade_back()  # Fade back after switch
         while not self.colour_loop_break.is_set():
             px = self.bounce_state % self.LED_number
             if self.bounce_state <= self.LED_number:
-                self.strip.setPixelColor(self.get_led_id(px), fg_colour)
-                self.strip.setPixelColor(self.get_led_id(px - 1), bg_colour)
+                self.set_pixel_colour(self.get_led_id(px), fg_colour)
+                self.set_pixel_colour(self.get_led_id(px - 1), bg_colour)
             else:
-                self.strip.setPixelColor(self.get_led_id(self.LED_number + 1 - px), fg_colour)
-                self.strip.setPixelColor(self.get_led_id(self.LED_number + 2 - px), bg_colour)
-            self.strip.show()
+                self.set_pixel_colour(self.get_led_id(self.LED_number + 1 - px), fg_colour)
+                self.set_pixel_colour(self.get_led_id(self.LED_number + 2 - px), bg_colour)
+            self.show()
             time.sleep(ms_time/1000.0)
             self.bounce_state = (self.bounce_state + 1) % (2 * self.LED_number + 2)
     def _wave(self, slow_down=1, colour_one=None, colour_two=None, **kwargs):
@@ -158,16 +156,16 @@ class RingLED(npxp.DriveLED):
         # Restore last known state
         for i in ["one", "two"]:
             for j in range (self.wave_state[i]):
-                self.strip.setPixelColor(self.get_led_id(self.wave_origin[i] + j), wave_colour[i])
-                self.strip.setPixelColor(self.get_led_id(self.wave_origin[i] - j), wave_colour[i])
+                self.set_pixel_colour(self.get_led_id(self.wave_origin[i] + j), wave_colour[i])
+                self.set_pixel_colour(self.get_led_id(self.wave_origin[i] - j), wave_colour[i])
 
-            self.strip.setPixelColor(self.get_led_id(self.wave_origin[i] + self.wave_state[i]),
+            self.set_pixel_colour(self.get_led_id(self.wave_origin[i] + self.wave_state[i]),
                                      self.wave_colour_current[i])
-            self.strip.setPixelColor(self.get_led_id(self.wave_origin[i] - self.wave_state[i]),
+            self.set_pixel_colour(self.get_led_id(self.wave_origin[i] - self.wave_state[i]),
                                      self.wave_colour_current[i])
 
-        self._switch_fade_back()  # Fade back after switch
-        self.strip.show()
+        self.switch_fade_back()  # Fade back after switch
+        self.show()
 
         while not self.colour_loop_break.is_set():
             for i in random.sample(["one", "two"], 2):
@@ -193,8 +191,8 @@ class RingLED(npxp.DriveLED):
                                                                                  wave_colour[part])
         if len(self.wave_queue[part]) != 0:
             self.wave_state[part] = self.wave_queue[part].pop(0)
-            self.strip.setPixelColor(self.get_led_id(self.wave_origin[part] + self.wave_state[part]),
+            self.set_pixel_colour(self.get_led_id(self.wave_origin[part] + self.wave_state[part]),
                                      self.wave_colour_current[part])
-            self.strip.setPixelColor(self.get_led_id(self.wave_origin[part] - self.wave_state[part]),
+            self.set_pixel_colour(self.get_led_id(self.wave_origin[part] - self.wave_state[part]),
                                      self.wave_colour_current[part])
-            self.strip.show()
+            self.show()

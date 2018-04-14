@@ -16,16 +16,25 @@ LED_INVERT     = False   # True to invert the signal (when using NPN transistor 
 LED_CHANNEL    = 0       # set to '1' for GPIOs 13, 19, 41, 45 or 53
 LED_STRIP      = npx.ws.WS2811_STRIP_GRB   # Strip type and colour ordering
 
+def get_colour(r, g, b):
+    return npx.Color(r, g, b)
+
+def get_neopixel(led_count, led_pin, led_freq_hz, led_dma, led_invert,
+        led_brightness, led_channel, led_strip):
+    return npx.Adafruit_NeoPixel(led_count, led_pin, led_freq_hz,
+            led_dma, led_invert, led_brightness,
+            led_channel, led_strip)
+
 def wheel(pos):
     """Generate rainbow colors across 0-255 positions."""
     if pos < 85:
-        return npx.Color(pos * 3, 255 - pos * 3, 0)
+        return get_colour(pos * 3, 255 - pos * 3, 0)
     elif pos < 170:
         pos -= 85
-        return npx.Color(255 - pos * 3, 0, pos * 3)
+        return get_colour(255 - pos * 3, 0, pos * 3)
     else:
         pos -= 170
-        return npx.Color(0, pos * 3, 255 - pos * 3)
+        return get_colour(0, pos * 3, 255 - pos * 3)
 
 def extract_colour(colour, colour_component):
     if colour_component.lower() == "r":
@@ -117,6 +126,11 @@ class DriveLED(threading.Thread):
         # (Almost) infinite loop for displaying colour patterns
         self.colour_loop_break = threading.Event()
 
+        # Paused loop
+        self.paused = threading.Event()
+        self.pause_ms_time = 500
+        self.pause_indicator = False
+
         # Init patterns
         self._init_default_patterns()
         try:
@@ -143,10 +157,15 @@ class DriveLED(threading.Thread):
             led_channel = LED_CHANNEL
         if led_strip is None:
             led_strip = LED_STRIP
-        strip = npx.Adafruit_NeoPixel(led_count, led_pin, led_freq_hz,
-                                      led_dma, led_invert, led_brightness,
-                                      led_channel, led_strip)
+        strip = get_neopixel(led_count, led_pin, led_freq_hz, led_dma,
+                led_invert, led_brightness, led_channel, led_strip)
         return strip
+
+    def set_pixel_colour(self, pixel_id, colour):
+        self.strip.setPixelColor(pixel_id, colour)
+
+    def show(self):
+        self.strip.show()
 
     def switch_pattern(self, new_pattern, **kwargs):
         self.pattern_positional_arguments = kwargs
@@ -154,20 +173,27 @@ class DriveLED(threading.Thread):
         self._update_pattern("switch")
         self.colour_loop_break.set()
     def _switch_pattern(self, **kwargs):
+        if self.pause_indicator:
+            return
+
         self.colour_loop_break.clear()
         self._revert_pattern()
         if self.switch_fade:
             for i in range(self.strip.getBrightness()-1, 0-1, -1):
                 self.strip.setBrightness(i)
-                self.strip.show()
+                self.show()
                 time.sleep(self.switch_ms_time/1000.0)
         self._dark()
-    def _switch_fade_back(self, overwrite=None):
+    def switch_fade_back(self, overwrite=None):
+        if self.pause_indicator:
+            self.pause_indicator = False
+            return
+
         if self.switch_fade and self.previous_pattern != "brightness":
             max_brightness = self.brightness if overwrite is None else overwrite
             for i in range(0+1, max_brightness+1):
                 self.strip.setBrightness(i)
-                self.strip.show()
+                self.show()
                 time.sleep(self.switch_ms_time/1000.0)
         if not self.switch_fade and self.previous_pattern != "brightness":
             self.strip.setBrightness(self.brightness)
@@ -192,19 +218,26 @@ class DriveLED(threading.Thread):
 
         for i in bright_me(self.strip.getBrightness(), self.brightness):
             self.strip.setBrightness(i)
-            self.strip.show()
+            self.show()
             time.sleep(wait_ms/1000.0)
         self.colour_loop_break.clear()
         self._revert_pattern()
 
     def pause(self):
         self.colour_loop_break.set()
+        self.paused.set()
+        self.pause_indicator = True
 
-    def restart(self):
+    def unpause(self):
         self.colour_loop_break.clear()
+        self.paused.clear()
 
     def run(self):
         while not self.active.is_set():
+            # A pause
+            while self.paused.is_set():
+                time.sleep(self.pause_ms_time/1000.0)
+
             if self.pattern in self.pattern_map:
                 self.pattern_map[self.pattern](**self.pattern_positional_arguments)
             else:
@@ -224,43 +257,43 @@ class DriveLED(threading.Thread):
         self.pattern_map.update(default_patterns_map)
 
         # Pulse
-        self.pulse_colour = npx.Color(128, 0, 128)
+        self.pulse_colour = get_colour(128, 0, 128)
         self.pulse_brightness = self.strip.getBrightness()
         # Still
-        self.still_colour = npx.Color(0, 128, 128)
+        self.still_colour = get_colour(0, 128, 128)
         # Switch
         self.switch_ms_time = 5
 
     # Predefined general patterns
     def _dark(self):
         for i in range(self.LED_number):
-            self.strip.setPixelColor(i, 0)
-        self.strip.show()
+            self.set_pixel_colour(i, 0)
+        self.show()
     def _none(self, ms_time=1000, **kwargs):
         self._dark()
-        self._switch_fade_back()  # Fade back after switch
+        self.switch_fade_back()  # Fade back after switch
         while not self.colour_loop_break.is_set():
             time.sleep(ms_time/1000.0)
     def _still(self, ms_time=1000, colour=None, **kwargs):
         if colour is None:
             colour = self.still_colour
         for i in range(self.LED_number):
-            self.strip.setPixelColor(i, colour)
-        self._switch_fade_back()  # Fade back after switch
-        self.strip.show()
+            self.set_pixel_colour(i, colour)
+        self.switch_fade_back()  # Fade back after switch
+        self.show()
         while not self.colour_loop_break.is_set():
             time.sleep(ms_time/1000.0)
     def _pulse(self, ms_time=20, colour=None, **kwargs):
         if colour is None:
             colour = self.pulse_colour
         for i in range(self.LED_number):
-            self.strip.setPixelColor(i, colour)
-        self._switch_fade_back(overwrite=self.pulse_brightness)  # Fade back after switch
+            self.set_pixel_colour(i, colour)
+        self.switch_fade_back(overwrite=self.pulse_brightness)  # Fade back after switch
         if self.previous_pattern != "brightness":
             for i in range(self.pulse_brightness, self.brightness+1):
                 self.pulse_brightness = i
                 self.strip.setBrightness(self.pulse_brightness)
-                self.strip.show()
+                self.show()
                 if self.colour_loop_break.is_set():
                     break
                 time.sleep((100*ms_time)/(self.brightness+1-self.pulse_brightness)/1000.0)
@@ -271,11 +304,14 @@ class DriveLED(threading.Thread):
             for i in axis:
                 self.pulse_brightness = i
                 self.strip.setBrightness(self.pulse_brightness)
-                self.strip.show()
+                self.show()
                 if self.colour_loop_break.is_set():
                     break
                 time.sleep((100*ms_time)/int((len(axis)/2))/1000.0)
 
     ############################################################################
+    def rotate(self, pattern):
+        raise NotImplementedError
+
     def _init_custom_patterns(self):
         raise NotImplementedError
