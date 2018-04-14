@@ -7,8 +7,6 @@ import threading
 #     print("Caught a signal: {}".format(signum))
 #     LED_shutdown()
 
-print("lol")
-
 def LED_shutdown():
     print("Gracefully quitting all LED driver threads.")
     for t in threading.enumerate():
