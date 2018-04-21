@@ -8,7 +8,7 @@ RING_LED_PIN        = 12      # Google AIY voice hat -- Servo 4 -- GPIO 12.
 RING_LED_CHANNEL    = 0       # set to '1' for GPIOs 13, 19, 41, 45 or 53
 RING_LED_COUNT      = 16      # Number of LED pixels.
 
-# TODO: set upright pixel offset for the ring (just like square rotation
+RING_LED_MAP = list(range(RING_LED_COUNT))
 
 class RingLED(npxp.DriveLED):
     """
@@ -25,7 +25,7 @@ class RingLED(npxp.DriveLED):
     """
 
     def _init_strip(self, led_count, led_pin, led_freq_hz, led_dma, led_invert,
-            led_brightness, led_channel, led_strip):
+            led_brightness, led_channel, led_strip, led_map):
         # Create NeoPixel object with appropriate configuration.
         if led_count is None:
             led_count = RING_LED_COUNT
@@ -45,7 +45,21 @@ class RingLED(npxp.DriveLED):
             led_strip = npxp.LED_STRIP
         strip = npxp.get_neopixel(led_count, led_pin, led_freq_hz, led_dma,
                 led_invert, led_brightness, led_channel, led_strip)
-        return strip
+
+        # Create LED map
+        if led_map is None:
+            led_map = RING_LED_MAP
+
+        return strip, led_map
+
+    def _get_pixel_id(self, pixel_position):
+        # raise NotImplementedError
+        return self.led_map[pixel_position]
+
+    def _rotated_pixel(self, pixel_id):
+        led_1 = self.LED_number - 1
+        rotation = self.rotation & led_1
+        return (pixel_id + rotation) & led_1
 
     # Predefined circular patterns -- necessary inits
     def _init_custom_patterns(self):
