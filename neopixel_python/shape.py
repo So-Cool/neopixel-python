@@ -1,7 +1,5 @@
-from __future__ import print_function
-
 import atexit
-import neopixel as npx
+import neopixel_python.neopixel as npx
 import threading
 import time
 
@@ -9,10 +7,11 @@ import time
 
 # LED strip configuration:
 LED_PIN        = 18      # GPIO pin connected to the pixels (18 uses PWM!).
+#LED_PIN        = 12      # Google AIY voice hat -- Servo 4 -- GPIO 12.
 #LED_PIN        = 10      # GPIO pin connected to the pixels (10 uses SPI /dev/spidev0.0).
 LED_COUNT      = 16      # Number of LED pixels.
 LED_FREQ_HZ    = 800000  # LED signal frequency in hertz (usually 800khz)
-LED_DMA        = 10      # DMA channel to use for generating signal (try 10)
+LED_DMA        = 10      # DMA channel to use for generating signal (try 10) ?or 5? Worked with 11!
 LED_BRIGHTNESS = 128     # Set to 0 for darkest and 255 for brightest
 LED_INVERT     = False   # True to invert the signal (when using NPN transistor level shift)
 LED_CHANNEL    = 0       # set to '1' for GPIOs 13, 19, 41, 45 or 53
@@ -104,13 +103,14 @@ class DriveLED(threading.Thread):
         # Intialize the library (must be called once before other functions).
         self.strip.begin()
         # Remove neopixel built in exit handler and execute it manually on thread stop (__init__.py)
-        atx = atexit._exithandlers[:]
-        for a in atx:
-            try:
-                if isinstance(a[0].im_self, npx.Adafruit_NeoPixel):
-                    atexit._exithandlers.remove(a)
-            except AttributeError:
-                pass
+        # (DEPRECATED IN PYTHON 3)
+#        atx = atexit._exithandlers[:]
+#        for a in atx:
+#            try:
+#                if isinstance(a[0].im_self, npx.Adafruit_NeoPixel):
+#                    atexit._exithandlers.remove(a)
+#            except AttributeError:
+#                pass
 
         # Init pattern changer
         self.pattern_map = {"brightness": self._set_brightness, "switch": self._switch_pattern}
@@ -326,7 +326,7 @@ class DriveLED(threading.Thread):
                     break
                 time.sleep((100*ms_time)/(self.brightness+1-self.pulse_brightness)/1000.0)
         #
-        axis = range(self.brightness, 0, -1)
+        axis = list(range(self.brightness, 0, -1))
         axis += [0] + axis[::-1]
         while not self.colour_loop_break.is_set():
             for i in axis:

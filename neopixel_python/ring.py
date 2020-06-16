@@ -1,6 +1,4 @@
-from __future__ import print_function
-
-import neopixel_python as npxp
+import neopixel_python.shape as npxp
 import random
 import time
 
@@ -19,7 +17,15 @@ class RingLED(npxp.DriveLED):
         rr.switch_pattern("rainbow")
         rr.switch_pattern("shake")
         rr.switch_pattern("bounce")
+        rr.switch_pattern("pulse")
+        rr.switch_pattern("still")
         rr.switch_pattern("wave")
+
+        rr.switch_pattern("test")
+
+        rr.switch_pattern("none")
+        rr.set_brightness(255)
+        rr.set_brightness(100)
 
         rr.stop()
     """

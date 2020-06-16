@@ -1,5 +1,5 @@
 import atexit
-import neopixel_python
+from neopixel_python import shape
 # import signal
 import threading
 
@@ -10,7 +10,7 @@ import threading
 def LED_shutdown():
     print("Gracefully quitting all LED driver threads.")
     for t in threading.enumerate():
-        if isinstance(t, neopixel_python.DriveLED):
+        if isinstance(t, shape.DriveLED):
             print("Stopping {}".format(type(t).__name__))
             t.stop()
 

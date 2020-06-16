@@ -1,14 +1,12 @@
-from __future__ import print_function
-
 import collections
 import colorsys
 import itertools
 import math
-import neopixel_python as npxp
+import neopixel_python.shape as npxp
 import random
 import time
 
-import square_misc
+import neopixel_python.square_misc
 
 try:
     import numpy as np
@@ -417,8 +415,8 @@ class SquareLED(npxp.DriveLED):
         if ascii_pic is None:
             ascii_pic = self.ascii_pic
         else:
-            if ascii_pic in square_misc.ascii_pics:
-                ascii_pic = square_misc.ascii_pics[ascii_pic]
+            if ascii_pic in neopixel_python.square_misc.ascii_pics:
+                ascii_pic = neopixel_python.square_misc.ascii_pics[ascii_pic]
         if colour is None:
             colour = self.ascii_colour
         if not scroll:

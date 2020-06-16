@@ -40,8 +40,40 @@ XXX  XXX\n\
 XXX  XXX\n\
 XX    XX\
 """
+"""
+4. Face
 
-ascii_pics = {"yes": ascii_yes, "no": ascii_no}
+   X  X        X  X
+   X  X        X  X
+
+
+   X  X  X  X  X  X
+   X  X  X  X  X  X
+
+"""
+ascii_me = """\
+        \n\
+ XX  XX \n\
+ XX  XX \n\
+        \n\
+        \n\
+ XXXXXX \n\
+ XXXXXX \n\
+        \
+"""
+ascii_why = """\
+  XXXX  \n\
+ XX  XX \n\
+  X   X \n\
+     XX \n\
+   XX   \n\
+  XX    \n\
+        \n\
+  XX    \
+"""
+
+ascii_pics = {"yes": ascii_yes, "no": ascii_no, "why": ascii_why, "me": ascii_me}
+
 ################################################################################
 
 """
