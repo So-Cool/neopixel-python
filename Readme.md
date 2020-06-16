@@ -44,3 +44,6 @@ Adjust `LED_PIN` to 13 or 18 and `LED_CHANNEL` 0 to 1.
 ## Notes ##
 This library is distributed with a file (`neopixel_python/neopixel.py`) adapted from the [`rpi_ws281x` library](https://github.com/jgarff/rpi_ws281x/blob/master/python/neopixel.py).
 It is required for the proper functioning of this package but it is not distributed with the pip's version of `rpi_ws281x`, which superseded the Python library distributed as a part of [`rpi_ws281x`](https://github.com/jgarff/rpi_ws281x).
+
+## To Do ##
+- [ ] Consider [Unicorn Hat](https://github.com/pimoroni/unicorn-hat) as a Linux service written in C and controlled from Python instead. Also have a look at [Unicorn Paint](https://learn.pimoroni.com/tutorial/unicorn-hat/getting-started-with-unicorn-paint) and [OctaPi](https://projects.raspberrypi.org/en/projects/build-an-octapi)'s use of Unicorn Hat.
